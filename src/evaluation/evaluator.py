@@ -3,7 +3,12 @@
 from dataclasses import dataclass
 
 import pandas as pd
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+)
 
 from src.constants import (
     MINIMUM_TRAINING_ROWS,
@@ -11,7 +16,10 @@ from src.constants import (
     TARGET_COLUMN,
 )
 from src.feature_engineering import get_feature_columns
-from src.models.random_forest import build_random_forest
+from src.models.random_forest import (
+    predict_latest,
+    train_random_forest,
+)
 
 
 @dataclass
@@ -32,10 +40,9 @@ def walk_forward_evaluate(
     evaluation_window: int = ROLLING_EVALUATION_WINDOW,
 ) -> EvaluationResult:
     """
-    Evaluate a Random Forest using expanding-window validation.
+    Evaluate the model using expanding-window walk-forward validation.
 
-    Each test observation is predicted using only observations that occurred
-    before it, preventing future information from leaking into training.
+    Each observation is predicted using only data available before its date.
     """
     if evaluation_window < 1:
         raise ValueError("Evaluation window must be at least 1.")
@@ -45,9 +52,11 @@ def walk_forward_evaluate(
     if not feature_columns:
         raise ValueError("No model features were found.")
 
-    evaluation_data = dataframe.dropna(
-        subset=feature_columns + [TARGET_COLUMN]
-    ).reset_index(drop=True)
+    evaluation_data = (
+        dataframe
+        .dropna(subset=feature_columns + [TARGET_COLUMN])
+        .reset_index(drop=True)
+    )
 
     required_rows = MINIMUM_TRAINING_ROWS + evaluation_window
 
@@ -64,22 +73,15 @@ def walk_forward_evaluate(
         training_data = evaluation_data.iloc[:test_index]
         test_row = evaluation_data.iloc[[test_index]]
 
-        model = build_random_forest()
-        model.fit(
-            training_data[feature_columns],
-            training_data[TARGET_COLUMN].astype(int),
+        model, trained_feature_columns = train_random_forest(
+            training_data
         )
 
-        predicted_class = int(
-            model.predict(test_row[feature_columns])[0]
+        prediction = predict_latest(
+            model=model,
+            dataframe=test_row,
+            feature_columns=trained_feature_columns,
         )
-
-        class_probabilities = model.predict_proba(
-            test_row[feature_columns]
-        )[0]
-
-        class_index = list(model.classes_).index(predicted_class)
-        probability = float(class_probabilities[class_index])
 
         actual_class = int(test_row[TARGET_COLUMN].iloc[0])
 
@@ -87,9 +89,11 @@ def walk_forward_evaluate(
             {
                 "date": test_row["date"].iloc[0],
                 "actual": actual_class,
-                "predicted": predicted_class,
-                "probability": probability,
-                "correct": predicted_class == actual_class,
+                "predicted": prediction.predicted_class,
+                "probability": prediction.probability,
+                "correct": (
+                    prediction.predicted_class == actual_class
+                ),
             }
         )
 

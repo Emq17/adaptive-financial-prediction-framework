@@ -10,11 +10,11 @@ def create_features(
     lookback: int,
 ) -> pd.DataFrame:
     """
-    Create historical price features for a selected lookback window.
+    Create historical features for a selected lookback window.
 
-    The target represents the direction of the following day's close:
-    1 = bullish
-    0 = bearish
+    Rows with complete model features are preserved even when the next-day
+    target is unknown. This keeps the latest completed candle available for
+    a future prediction.
     """
     if lookback < 1:
         raise ValueError("Lookback must be at least 1 day.")
@@ -64,17 +64,26 @@ def create_features(
 
     featured_data[TARGET_COLUMN] = (
         next_close > featured_data[CLOSE_COLUMN]
-    ).astype(int)
+    ).astype("Int64")
 
-    featured_data.loc[next_close.isna(), TARGET_COLUMN] = pd.NA
+    featured_data.loc[
+        next_close.isna(),
+        TARGET_COLUMN,
+    ] = pd.NA
 
-    return featured_data.dropna().reset_index(drop=True)
+    feature_columns = get_feature_columns(featured_data)
+
+    return (
+        featured_data
+        .dropna(subset=feature_columns)
+        .reset_index(drop=True)
+    )
 
 
 def get_feature_columns(
     dataframe: pd.DataFrame,
 ) -> list[str]:
-    """Return model input columns while excluding identifiers and target."""
+    """Return numeric model inputs while excluding identifiers and target."""
     excluded_columns = {
         "date",
         TARGET_COLUMN,
