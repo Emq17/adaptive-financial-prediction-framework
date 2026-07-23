@@ -1,23 +1,23 @@
-"""Streamlit interface for the Adaptive Financial Prediction Framework."""
+"""Streamlit entry point for the financial prediction dashboard."""
 
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
-from src.constants import (
-    APP_TITLE,
-    CANDIDATE_LOOKBACKS,
-    MAX_CUSTOM_LOOKBACK,
-    MIN_CUSTOM_LOOKBACK,
+from src.constants import APP_TITLE
+from src.framework import (
+    FinancialPredictionFramework,
+    FrameworkResult,
 )
-from src.framework import FinancialPredictionFramework
-from src.visualization import (
-    create_evaluation_chart,
-    create_price_chart,
-    create_rankings_chart,
-)
+from src.ui.controls import render_sidebar
+from src.ui.explanation import render_explanation
+from src.ui.research import render_research
+from src.ui.results import render_results
+from src.visualization import create_price_chart
 
 DATA_PATH = Path("data/raw/btc_1d_data_2018_to_2025.csv")
+
 
 st.set_page_config(
     page_title=APP_TITLE,
@@ -25,159 +25,171 @@ st.set_page_config(
     layout="wide",
 )
 
+
+st.markdown(
+    """
+    <style>
+        .block-container {
+            max-width: 1500px;
+            padding-top: 1.5rem;
+            padding-bottom: 4rem;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        p,
+        .stCaption,
+        [data-testid="stMetricLabel"],
+        [data-testid="stMetricValue"],
+        [data-testid="stMetricDelta"] {
+            text-align: center;
+        }
+
+        [data-testid="stMetric"] {
+            text-align: center;
+        }
+
+        [data-testid="stAlert"] {
+            text-align: center;
+        }
+
+        [data-testid="stSidebar"] {
+            text-align: center;
+        }
+
+        [data-testid="stSidebar"] button {
+            width: 100%;
+        }
+
+        .stTabs [data-baseweb="tab-list"] {
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        .stTabs [data-baseweb="tab"] {
+            font-size: 1rem;
+            font-weight: 650;
+        }
+
+        div[data-testid="stDataFrame"] {
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+@st.cache_resource
+def load_framework() -> FinancialPredictionFramework:
+    """Load the dataset and framework once."""
+    return FinancialPredictionFramework(DATA_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def run_cached_prediction(
+    prediction_date_iso: str,
+    custom_lookback: int | None,
+) -> FrameworkResult:
+    """
+    Run and cache a prediction for a specific date and lookback selection.
+
+    Repeating the same request returns the saved result instead of retraining
+    every walk-forward model.
+    """
+    prediction_framework = FinancialPredictionFramework(DATA_PATH)
+
+    return prediction_framework.run(
+        prediction_date=pd.Timestamp(prediction_date_iso),
+        custom_lookback=custom_lookback,
+    )
+
+
 st.title(APP_TITLE)
 
 st.caption(
-    "Daily Bitcoin direction prediction using Random Forest models, "
+    "Daily Bitcoin decision-support system using Random Forest models, "
     "walk-forward validation, and adaptive lookback selection."
 )
 
-with st.sidebar:
-    st.header("Prediction Settings")
-
-    st.selectbox(
-        "Financial Asset",
-        options=["Bitcoin"],
-        disabled=True,
-    )
-
-    st.selectbox(
-        "Timeframe",
-        options=["Daily"],
-        disabled=True,
-    )
-
-    selection_mode = st.radio(
-        "Lookback Selection",
-        options=["Recommended", "Custom"],
-    )
-
-    custom_lookback = None
-
-    if selection_mode == "Custom":
-        custom_lookback = st.number_input(
-            "Custom Lookback (Days)",
-            min_value=MIN_CUSTOM_LOOKBACK,
-            max_value=MAX_CUSTOM_LOOKBACK,
-            value=20,
-            step=1,
-        )
-
-    run_prediction = st.button(
-        "Run Prediction",
-        type="primary",
-        use_container_width=True,
-    )
-
-st.info(
-    "The recommended mode evaluates "
-    f"{', '.join(map(str, CANDIDATE_LOOKBACKS))}-day lookbacks "
-    "using the latest 30 walk-forward predictions."
-)
 
 try:
-    framework = FinancialPredictionFramework(DATA_PATH)
+    framework = load_framework()
 except Exception as error:
     st.error(f"Unable to load the market dataset: {error}")
     st.stop()
 
+
+settings = render_sidebar(framework.market_data)
+
+
+# The complete price chart remains visible at the top before and after
+# predictions are generated.
 st.plotly_chart(
     create_price_chart(framework.market_data),
-    use_container_width=True,
+    width="stretch",
 )
 
-if run_prediction:
-    try:
-        with st.spinner(
-            "Evaluating models and generating the next-day prediction..."
-        ):
-            result = framework.run(
-                custom_lookback=(
-                    int(custom_lookback)
-                    if custom_lookback is not None
-                    else None
-                )
-            )
 
-        st.success("Prediction completed successfully.")
+if not settings.run_prediction:
+    st.info(
+        "Choose a prediction date and lookback mode, then select "
+        "**Run Prediction**."
+    )
 
-        metric_one, metric_two, metric_three, metric_four = st.columns(4)
+    st.stop()
 
-        metric_one.metric(
-            "Prediction Date",
-            result.prediction_date.strftime("%Y-%m-%d"),
+
+try:
+    spinner_text = (
+        "Evaluating candidate lookbacks and training the final model..."
+        if settings.custom_lookback is None
+        else "Evaluating the custom lookback and training the final model..."
+    )
+
+    with st.spinner(spinner_text):
+        result = run_cached_prediction(
+            prediction_date_iso=(
+                settings.prediction_date.isoformat()
+            ),
+            custom_lookback=settings.custom_lookback,
         )
 
-        metric_two.metric(
-            "Direction",
-            result.prediction.label,
-        )
+    st.success("Prediction completed successfully.")
 
-        metric_three.metric(
-            "Estimated Probability",
-            f"{result.prediction.probability:.1%}",
-        )
+except Exception as error:
+    st.error(f"Prediction failed: {error}")
+    st.stop()
 
-        metric_four.metric(
-            "Selected Lookback",
-            f"{result.selected_lookback} days",
-        )
 
-        st.subheader("Prediction Summary")
+results_tab, explanation_tab, research_tab = st.tabs(
+    [
+        "Results",
+        "Explanation",
+        "Research",
+    ]
+)
 
-        st.write(
-            f"The model predicts a **{result.prediction.label.lower()}** "
-            f"Bitcoin daily close for "
-            f"**{result.prediction_date.strftime('%B %d, %Y')}**, "
-            f"with an estimated probability of "
-            f"**{result.prediction.probability:.1%}**."
-        )
 
-        if result.recommendation is not None:
-            st.subheader("Adaptive Lookback Recommendation")
+with results_tab:
+    render_results(
+        result=result,
+        market_data=framework.market_data,
+    )
 
-            rankings = result.recommendation.rankings.copy()
-            rankings["accuracy"] = rankings["accuracy"].map(
-                lambda value: f"{value:.1%}"
-            )
-            rankings["precision"] = rankings["precision"].map(
-                lambda value: f"{value:.1%}"
-            )
-            rankings["recall"] = rankings["recall"].map(
-                lambda value: f"{value:.1%}"
-            )
-            rankings["f1_score"] = rankings["f1_score"].map(
-                lambda value: f"{value:.1%}"
-            )
 
-            st.dataframe(
-                rankings,
-                use_container_width=True,
-                hide_index=True,
-            )
+with explanation_tab:
+    render_explanation(result)
 
-            st.plotly_chart(
-                create_rankings_chart(
-                    result.recommendation.rankings
-                ),
-                use_container_width=True,
-            )
 
-            selected_evaluation = (
-                result.recommendation.evaluations[
-                    result.selected_lookback
-                ]
-            )
+with research_tab:
+    render_research(result)
 
-            st.plotly_chart(
-                create_evaluation_chart(selected_evaluation),
-                use_container_width=True,
-            )
 
-        st.caption(
-            "This application is an educational decision-support tool and "
-            "does not provide financial advice."
-        )
-
-    except Exception as error:
-        st.error(f"Prediction failed: {error}")
+st.caption(
+    "Educational decision-support application. "
+    "This framework does not provide financial advice."
+)
