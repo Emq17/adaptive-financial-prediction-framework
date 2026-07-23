@@ -4,8 +4,14 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from src.constants import CANDIDATE_LOOKBACKS
-from src.evaluation.evaluator import EvaluationResult, walk_forward_evaluate
+from src.constants import (
+    CANDIDATE_LOOKBACKS,
+    ROLLING_EVALUATION_WINDOW,
+)
+from src.evaluation.evaluator import (
+    EvaluationResult,
+    walk_forward_evaluate,
+)
 from src.feature_engineering import create_features
 
 
@@ -20,13 +26,13 @@ class RecommendationResult:
 
 def recommend_lookback(
     market_data: pd.DataFrame,
+    prediction_date: pd.Timestamp,
     lookbacks: list[int] | None = None,
+    evaluation_window: int = ROLLING_EVALUATION_WINDOW,
 ) -> RecommendationResult:
     """
-    Evaluate candidate lookbacks and recommend the highest-ranked option.
-
-    Models are ranked primarily by accuracy, then F1 score, precision,
-    recall, and finally the shorter lookback when scores are tied.
+    Evaluate candidate lookbacks using only information available before
+    the selected prediction date.
     """
     candidate_lookbacks = lookbacks or CANDIDATE_LOOKBACKS
 
@@ -37,10 +43,16 @@ def recommend_lookback(
     ranking_records: list[dict[str, float | int]] = []
 
     for lookback in candidate_lookbacks:
-        featured_data = create_features(market_data, lookback)
+        featured_data = create_features(
+            dataframe=market_data,
+            lookback=lookback,
+        )
+
         evaluation = walk_forward_evaluate(
             dataframe=featured_data,
             lookback=lookback,
+            evaluation_window=evaluation_window,
+            prediction_cutoff=prediction_date,
         )
 
         evaluations[lookback] = evaluation
@@ -49,6 +61,12 @@ def recommend_lookback(
             {
                 "lookback": lookback,
                 "accuracy": evaluation.accuracy,
+                "average_confidence": (
+                    evaluation.predictions["probability"].mean()
+                ),
+                "out_of_sample_predictions": len(
+                    evaluation.predictions
+                ),
                 "precision": evaluation.precision,
                 "recall": evaluation.recall,
                 "f1_score": evaluation.f1_score,
