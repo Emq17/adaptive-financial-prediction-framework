@@ -29,7 +29,7 @@ def render_results(result: Any) -> None:
             ),
         )
         primary_metrics[1].metric(
-            "Estimated Confidence",
+            "Current Prediction Confidence",
             f"{result.prediction.probability:.1%}",
             help=(
                 "The proportion of Random Forest trees supporting the "
@@ -86,20 +86,15 @@ def render_results(result: Any) -> None:
     evaluation = result.selected_evaluation
     predictions = evaluation.predictions
 
-    performance_columns = st.columns(3)
+    performance_columns = st.columns([1, 2, 2, 1])
 
-    performance_columns[0].metric(
-        "Recent Accuracy",
+    performance_columns[1].metric(
+        "Accuracy",
         f"{predictions['correct'].mean():.1%}",
     )
 
-    performance_columns[1].metric(
-        "Average Confidence",
-        f"{predictions['probability'].mean():.1%}",
-    )
-
     performance_columns[2].metric(
-        "Predictions Analyzed",
+        "Predictions Evaluated",
         len(predictions),
     )
 

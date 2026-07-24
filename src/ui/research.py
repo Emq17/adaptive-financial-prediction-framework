@@ -35,9 +35,9 @@ def render_research(result: Any) -> None:
             key="research_lookback_accuracy",
         )
         st.caption(
-            "The highlighted bar is the selected analysis window. Selection "
-            "is based primarily on recent out-of-sample accuracy, with "
-            "existing internal tie-breakers applied when needed."
+            "The highlighted bar is the selected analysis window. Analysis "
+            "windows are ranked primarily by walk-forward accuracy, with "
+            "internal tie-breaking rules applied when needed."
         )
 
         with st.expander("View exact analysis window values"):

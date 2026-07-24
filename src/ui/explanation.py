@@ -83,12 +83,11 @@ def render_explanation(result: Any) -> None:
     )
 
     st.divider()
-    st.subheader("Confidence")
+    st.subheader("Current Prediction Confidence")
     st.write(
-        "Estimated confidence is the proportion of Random Forest trees that "
-        "voted for the displayed class. It measures agreement within the "
-        "model, not the probability that the market prediction will be "
-        "correct."
+        "Current Prediction Confidence represents the proportion of Random "
+        "Forest trees that voted for the displayed direction. It describes "
+        "this prediction only and is not a historical accuracy measure."
     )
 
     st.divider()

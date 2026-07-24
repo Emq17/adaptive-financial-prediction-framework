@@ -126,10 +126,6 @@ def prepare_rankings_table(
         "accuracy"
     ].map(lambda value: f"{value:.1%}")
 
-    display_table["Average Confidence"] = display_table[
-        "average_confidence"
-    ].map(lambda value: f"{value:.1%}")
-
     display_table["Rank"] = display_table["rank"]
 
     return display_table[
@@ -137,7 +133,6 @@ def prepare_rankings_table(
             "Selected",
             "Analysis Window",
             "Accuracy",
-            "Average Confidence",
             "Rank",
         ]
     ]
