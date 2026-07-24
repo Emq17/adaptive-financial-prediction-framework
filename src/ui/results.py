@@ -78,31 +78,33 @@ def render_results(result: Any) -> None:
 
     st.divider()
     st.subheader("Recent Walk-Forward Performance")
-    st.caption(
-        "How did the selected analysis window perform across the most recent "
-        "out-of-sample predictions?"
-    )
 
     evaluation = result.selected_evaluation
     predictions = evaluation.predictions
 
-    performance_columns = st.columns([1, 2, 2, 1])
+    centered_metrics = st.columns([1, 3, 1], gap="small")
 
-    performance_columns[1].metric(
-        "Accuracy",
-        f"{predictions['correct'].mean():.1%}",
-    )
+    with centered_metrics[1]:
+        performance_columns = st.columns(2, gap="small")
 
-    performance_columns[2].metric(
-        "Predictions Evaluated",
-        len(predictions),
-    )
+        with performance_columns[0]:
+            with st.container(border=True):
+                st.metric(
+                    "Accuracy",
+                    f"{predictions['correct'].mean():.1%}",
+                )
+
+        with performance_columns[1]:
+            with st.container(border=True):
+                st.metric(
+                    "Predictions Evaluated",
+                    len(predictions),
+                )
 
     st.caption(
-        "These statistics summarize the recent historical walk-forward "
-        "predictions used to evaluate the selected analysis window. They do "
-        "not determine whether the currently displayed prediction itself is "
-        "correct."
+        "These metrics summarize recent out-of-sample evaluation results for "
+        "the selected analysis window. They do not indicate whether the "
+        "current prediction will be correct."
     )
 
     st.divider()
