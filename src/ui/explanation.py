@@ -1,4 +1,4 @@
-"""Methodology and definition components."""
+"""Methodology and limitation components."""
 
 from typing import Any
 
@@ -8,46 +8,69 @@ import streamlit as st
 def render_explanation(result: Any) -> None:
     """Explain the prediction workflow in concise, plain language."""
     prediction_count = len(result.selected_evaluation.predictions)
+    dataset_cutoff = result.latest_available_date.strftime("%B %d, %Y")
 
     st.subheader("Prediction Process")
     st.write(
-        "The framework creates market features from completed daily Bitcoin "
-        "candles, trains a Random Forest on eligible historical rows, and "
-        "predicts whether the selected day's close will be above the prior "
-        "close."
+        "The framework creates market indicators from completed daily "
+        "Bitcoin data, trains a Random Forest classifier on eligible "
+        "historical observations, and predicts whether the next trading day "
+        "is more likely to close bullish or bearish."
+    )
+    st.caption(
+        "Bullish indicates a close above the previous day's close. Bearish "
+        "indicates a close at or below the previous day's close."
     )
 
     with st.expander("Prediction cutoff details"):
         st.write(
-            "The final model used completed candles through "
+            "This demonstration uses a static dataset containing completed "
+            f"Bitcoin data through **{dataset_cutoff}**; it does not use "
+            "live market data. For this prediction, the model used completed "
+            "candles through "
             f"**{result.latest_market_date.strftime('%B %d, %Y')}**. "
-            "Observations after the selected prediction cutoff were excluded "
-            "from feature creation, evaluation, and training."
+            "Later observations were excluded so the displayed prediction "
+            "and historical evaluation remain reproducible."
         )
+
+        if result.prediction_date > result.latest_available_date:
+            st.caption(
+                f"{result.prediction_date.strftime('%B %d, %Y')} is the next "
+                "date after the final completed input candle, not a live "
+                "current-date prediction."
+            )
 
     st.divider()
     st.subheader("Adaptive Analysis Window")
+    st.write(
+        "The analysis window is the number of previous trading days the "
+        "model reviews before making a prediction. Recommended mode compares "
+        "the available window lengths and selects the one with the strongest "
+        "recent walk-forward performance."
+    )
 
     if result.recommendation is not None:
-        st.write(
-            f"Recommended mode compared "
-            f"{len(result.recommendation.rankings)} available analysis "
-            f"windows. The {result.selected_lookback}-day analysis window "
-            "ranked highest using recent out-of-sample performance."
+        st.caption(
+            f"For this result, the {result.selected_lookback}-day analysis "
+            f"window ranked first among "
+            f"{len(result.recommendation.rankings)} available options."
         )
     else:
-        st.write(
-            f"Custom mode used the selected {result.selected_lookback}-day "
-            "analysis window and evaluated it with the same walk-forward "
-            "method."
+        st.caption(
+            f"This result uses the manually selected "
+            f"{result.selected_lookback}-day analysis window."
         )
 
     st.divider()
     st.subheader("Walk-Forward Validation")
     st.write(
-        f"The model made {prediction_count} sequential out-of-sample "
-        "predictions. For each one, it trained only on earlier observations "
-        "and then predicted the next unseen outcome."
+        "Walk-forward validation tests the model on sequential historical "
+        "days it had not yet seen. For each prediction, the model trains only "
+        "on earlier observations and then predicts the next unseen outcome."
+    )
+    st.caption(
+        f"The selected analysis window was evaluated with "
+        f"{prediction_count} recent out-of-sample predictions."
     )
 
     st.divider()
@@ -55,38 +78,9 @@ def render_explanation(result: Any) -> None:
     st.write(
         "Estimated confidence is the proportion of Random Forest trees that "
         "voted for the displayed class. It measures agreement within the "
-        "forest, not the probability that the market prediction is correct."
+        "model, not the probability that the market prediction will be "
+        "correct."
     )
-
-    st.divider()
-    st.subheader("Definitions")
-
-    with st.expander("Open definitions"):
-        st.markdown(
-            """
-            **Analysis Window**
-            The number of previous trading days the model reviews before
-            making a prediction.
-
-            **Analysis Window Accuracy**
-            How often the model correctly predicted market direction when
-            using a specific analysis window.
-
-            **Out-of-Sample Prediction**
-            A prediction made using historical data the model did not learn
-            from during training, providing a more realistic measure of
-            performance.
-
-            **SHAP Value**
-            Shows how each market indicator influenced this specific
-            prediction, indicating whether it pushed the model toward a
-            bullish or bearish outlook.
-
-            **Adaptive Selection**
-            Automatically chooses the analysis window that has performed best
-            on recent historical predictions.
-            """
-        )
 
     st.divider()
     st.subheader("Limitations")

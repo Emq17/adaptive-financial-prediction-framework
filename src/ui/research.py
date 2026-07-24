@@ -18,10 +18,12 @@ from src.visualization import (
 def render_research(result: Any) -> None:
     """Render validation results and deeper model diagnostics."""
     evaluation = result.selected_evaluation
-    predictions = evaluation.predictions
 
     st.subheader("Analysis Window Performance")
-    st.caption("Which analysis window performed best?")
+    st.caption(
+        "Which analysis window performed best during recent walk-forward "
+        "evaluation?"
+    )
 
     if result.recommendation is not None:
         st.plotly_chart(
@@ -33,9 +35,20 @@ def render_research(result: Any) -> None:
             key="research_lookback_accuracy",
         )
         st.caption(
-            "The highlighted bar is the analysis window selected from the "
-            "available options based on recent walk-forward accuracy."
+            "The highlighted bar is the selected analysis window. Selection "
+            "is based primarily on recent out-of-sample accuracy, with "
+            "existing internal tie-breakers applied when needed."
         )
+
+        with st.expander("View exact analysis window values"):
+            rankings = prepare_rankings_table(
+                result.recommendation.rankings
+            )
+            st.dataframe(
+                rankings.style.apply(highlight_winner, axis=1),
+                width="stretch",
+                hide_index=True,
+            )
     else:
         st.info(
             "Analysis window comparison is available in Recommended mode. "
@@ -45,30 +58,13 @@ def render_research(result: Any) -> None:
     st.divider()
     st.subheader("Historical Prediction Timeline")
     st.caption(
-        "How did the model's predictions and outcomes change over time?"
+        "How did confidence and prediction correctness vary across the "
+        "recent walk-forward evaluation period?"
     )
     st.plotly_chart(
         create_probability_timeline(evaluation),
         width="stretch",
         key="research_walk_forward_timeline",
-    )
-
-    st.divider()
-    st.subheader("Performance Statistics")
-    st.caption("What do the recent out-of-sample results summarize?")
-
-    metric_columns = st.columns(3)
-    metric_columns[0].metric(
-        "Recent Accuracy",
-        f"{predictions['correct'].mean():.1%}",
-    )
-    metric_columns[1].metric(
-        "Average Confidence",
-        f"{predictions['probability'].mean():.1%}",
-    )
-    metric_columns[2].metric(
-        "Predictions Analyzed",
-        len(predictions),
     )
 
     st.divider()
@@ -82,22 +78,3 @@ def render_research(result: Any) -> None:
         width="stretch",
         key="research_confusion_matrix",
     )
-
-    st.divider()
-    st.subheader("Analysis Window Comparison")
-    st.caption("How did the available analysis windows compare?")
-
-    if result.recommendation is not None:
-        with st.expander("Open analysis window comparison"):
-            rankings = prepare_rankings_table(
-                result.recommendation.rankings
-            )
-            st.dataframe(
-                rankings.style.apply(highlight_winner, axis=1),
-                width="stretch",
-                hide_index=True,
-            )
-    else:
-        st.info(
-            "Analysis window comparison details require Recommended mode."
-        )

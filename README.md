@@ -9,17 +9,16 @@ A WGU C964 Computer Science Capstone project that predicts the direction of the 
 - Expanding-window, out-of-sample walk-forward evaluation
 - Candlestick market-history chart
 - Plain-language methodology and prediction explanations
-- Prediction log and supporting performance statistics
+- Prediction log and recent walk-forward performance statistics
 
 ### Prediction-focused visualizations
 
 The dashboard includes focused visualizations for model interpretation,
 recommendation, and recent predictive performance:
 
-- Analysis Window Performance
+- Analysis Window Performance with an exact-value comparison
 - Historical Prediction Timeline
 - Confusion Matrix
-- Simplified Analysis Window Comparison
 - Current Prediction Drivers using SHAP: shows how current feature values
   moved the displayed prediction away from the model's usual prediction level
 
@@ -38,7 +37,7 @@ src/evaluation/                Walk-forward evaluation and recommendation
 src/framework.py               End-to-end orchestration
 src/ui/controls.py             Sidebar controls and input validation
 src/ui/results.py              Prediction results and performance output
-src/ui/explanation.py          Methodology and plain-language definitions
+src/ui/explanation.py          Methodology and limitations
 src/ui/research.py             Model comparison and validation analysis
 src/visualization.py           Plotly chart construction
 
@@ -63,7 +62,16 @@ Generating a prediction may take several seconds because the application perform
 
 The framework creates price-return, candle, volume, rolling, momentum, and lagged-return features from completed daily candles. Recommended mode evaluates the configured candidate lookbacks using recent expanding-window walk-forward predictions. Each test observation remains outside its model's training data, and prediction-date cutoffs prevent future observations from entering evaluation or final training.
 
-The selected Random Forest is trained on all eligible labeled observations before predicting the latest unlabeled feature row. Estimated confidence is the proportion of trees voting for the predicted class; it represents model agreement, not certainty.
+The selected Random Forest is trained on all eligible labeled observations before predicting whether the next daily close is bullish or bearish. Bullish means above the previous close; bearish means at or below it. Estimated confidence is the proportion of trees voting for the predicted class; it represents model agreement, not certainty.
+
+Results includes the selected configuration's recent walk-forward performance.
+Model Research combines the Analysis Window Performance chart with exact
+values in one section, followed by the historical timeline and confusion
+matrix.
+
+The bundled dataset contains completed Bitcoin observations through June 16,
+2026. It is static rather than live so predictions and evaluations remain
+reproducible.
 
 ## Important notice
 
