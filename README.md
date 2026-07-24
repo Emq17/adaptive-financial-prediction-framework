@@ -12,7 +12,7 @@ advice.
 ## Live Demo
 
 Explore the deployed application at
-[quantmatrix.streamlit.app](https://quantmatrix.streamlit.app).
+[pnlmetrics.streamlit.app](https://pnlmetrics.streamlit.app).
 
 ## Key Features
 
