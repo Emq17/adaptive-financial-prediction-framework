@@ -204,7 +204,7 @@ def create_prediction_drivers_chart(
     )
     figure.update_layout(
         title={
-            "text": "Top Current Prediction Drivers",
+            "text": "What Influenced This Prediction?",
             "x": 0.5,
             "xanchor": "center",
         },
@@ -286,9 +286,25 @@ def create_probability_timeline(
         y=average_confidence,
         line_dash="dash",
         line_width=1,
-        line_color="rgba(255,255,255,0.55)",
-        annotation_text="Average Confidence",
-        annotation_position="top left",
+        line_color="rgba(160,174,192,0.8)",
+    )
+    figure.add_annotation(
+        x=0.99,
+        xref="paper",
+        y=average_confidence,
+        yref="y",
+        text=f"Average Confidence: {average_confidence:.1f}%",
+        showarrow=False,
+        xanchor="right",
+        yanchor="bottom",
+        yshift=10,
+        font={
+            "color": "rgba(255,255,255,0.95)",
+            "size": 12,
+        },
+        bgcolor="rgba(17,24,39,0.82)",
+        bordercolor="rgba(160,174,192,0.45)",
+        borderpad=4,
     )
 
     figure.update_layout(

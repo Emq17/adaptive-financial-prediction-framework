@@ -1,80 +1,107 @@
 # Adaptive Financial Prediction Framework
 
-A WGU C964 Computer Science Capstone project that predicts the direction of the next daily Bitcoin candle using a Random Forest classifier. The application compares recent model performance across multiple analysis windows, supports a custom analysis window, and presents leakage-aware walk-forward evaluation in an interactive Streamlit dashboard.
+An interactive machine learning application that predicts whether the next
+daily Bitcoin close is more likely to be bullish or bearish. It combines a
+Random Forest classifier, adaptive analysis-window selection, walk-forward
+evaluation, and SHAP explanations in a Streamlit dashboard.
 
-## Features
+The project is designed to make model behavior and recent historical
+performance easy to inspect without presenting predictions as financial
+advice.
 
-- Date-aware historical and next-day prediction
-- Recommended or custom analysis window
-- Expanding-window, out-of-sample walk-forward evaluation
-- Candlestick market-history chart
-- Plain-language methodology and prediction explanations
-- Prediction log and recent walk-forward performance statistics
+## Key Features
 
-### Prediction-focused visualizations
+- Predicts bullish or bearish daily Bitcoin direction
+- Supports recommended and custom analysis windows
+- Selects an analysis window using recent walk-forward performance
+- Evaluates predictions on sequential historical observations
+- Explains the displayed prediction with local SHAP values
+- Compares analysis-window accuracy with exact supporting values
+- Includes a historical prediction timeline and confusion matrix
+- Displays Bitcoin price history and a detailed prediction log
+- Provides an interactive Streamlit interface
 
-The dashboard includes focused visualizations for model interpretation,
-recommendation, and recent predictive performance:
+## How It Works
 
-- Analysis Window Performance with an exact-value comparison
-- Historical Prediction Timeline
-- Confusion Matrix
-- Current Prediction Drivers using SHAP: shows how current feature values
-  moved the displayed prediction away from the model's usual prediction level
+The framework creates market indicators from historical Bitcoin prices and
+trading activity. It trains a Random Forest classifier to predict whether the
+next close will finish above the previous close (bullish) or at or below it
+(bearish).
 
-The local SHAP panel explains only the current displayed prediction; it does
-not establish causation or guarantee future movement.
+Recommended mode compares the available analysis windows using recent
+walk-forward evaluation. For each historical test day, the model learns only
+from earlier observations before predicting the next unseen outcome. This
+provides a more realistic view of recent performance while avoiding future
+data in training.
 
-## Project structure
+After the final prediction, SHAP values show which current market indicators
+pushed the fitted model toward a bullish or bearish result. These explanations
+describe model behavior; they do not establish causation or guarantee future
+performance.
 
-```text
-app.py                         Streamlit entry point
-data/raw/                      Source Bitcoin OHLCV dataset
-src/data_loader.py             Dataset loading and validation
-src/feature_engineering.py     Feature and target creation
-src/models/                    Random Forest training and prediction
-src/evaluation/                Walk-forward evaluation and recommendation
-src/framework.py               End-to-end orchestration
-src/ui/controls.py             Sidebar controls and input validation
-src/ui/results.py              Prediction results and performance output
-src/ui/explanation.py          Methodology and limitations
-src/ui/research.py             Model comparison and validation analysis
-src/visualization.py           Plotly chart construction
+## Dataset
 
-## Run locally
+The bundled dataset contains completed daily Bitcoin market observations
+through June 16, 2026. It is a static historical dataset rather than a live
+market feed, which keeps predictions and evaluation results reproducible.
 
-Create and activate a Python virtual environment, install the pinned dependencies, and start Streamlit:
+## Dashboard
 
+The interface is organized into three sections:
+
+- **Results** — prediction, confidence, SHAP drivers, and recent walk-forward
+  performance
+- **How It Works** — methodology, analysis-window selection, confidence, and
+  limitations
+- **Model Research** — analysis-window comparison, historical prediction
+  timeline, and confusion matrix
+
+Generating a prediction may take several seconds because the application
+performs walk-forward evaluation before displaying the result.
+
+## Project Layout
+
+- `app.py` — Streamlit entry point
+- `data/raw/` — bundled Bitcoin market dataset
+- `src/data_loader.py` — dataset loading and validation
+- `src/feature_engineering.py` — market-indicator and target creation
+- `src/models/` — Random Forest training and prediction
+- `src/evaluation/` — walk-forward evaluation and window recommendation
+- `src/framework.py` — prediction workflow orchestration
+- `src/ui/` — Streamlit controls and section renderers
+- `src/visualization.py` — Plotly chart construction
+
+## Prerequisites
+
+- Python 3.11 or a compatible Python 3 release
+- `pip`
+
+## Run Locally
+
+Create and activate a virtual environment:
+
+```bash
 python -m venv .venv
 source .venv/bin/activate
+```
+
+Install the pinned dependencies:
+
+```bash
 pip install -r requirements.txt
+```
+
+Start the Streamlit application:
+
+```bash
 python -m streamlit run app.py
+```
 
 Use the sidebar to choose a prediction date and Recommended or Custom mode,
-then select Run Prediction. The completed result remains available while
-switching among Results, How It Works, and Model Research.
+then select **Run Prediction**. The completed result remains available while
+switching among the dashboard sections.
 
-## Performance note
+## Disclaimer
 
-Generating a prediction may take several seconds because the application performs walk-forward evaluation before displaying the recommendation and supporting visualizations.
-
-## Methodology
-
-The framework creates price-return, candle, volume, rolling, momentum, and lagged-return features from completed daily candles. Recommended mode evaluates the configured candidate lookbacks using recent expanding-window walk-forward predictions. Each test observation remains outside its model's training data, and prediction-date cutoffs prevent future observations from entering evaluation or final training.
-
-The selected Random Forest is trained on all eligible labeled observations before predicting whether the next daily close is bullish or bearish. Bullish means above the previous close; bearish means at or below it. Estimated confidence is the proportion of trees voting for the predicted class; it represents model agreement, not certainty.
-
-Results includes the selected configuration's recent walk-forward performance.
-Model Research combines the Analysis Window Performance chart with exact
-values in one section, followed by the historical timeline and confusion
-matrix.
-
-The bundled dataset contains completed Bitcoin observations through June 16,
-2026. It is static rather than live so predictions and evaluations remain
-reproducible.
-
-## Important notice
-
-This application is an educational decision-support project. It does not provide financial advice, and historical model performance does not guarantee future results.
-
-For the final submission archive, include only the project source code and required data or assets. Exclude .git/, .venv/, Python cache directories, .pytest_cache/, and operating-system metadata files.
+This application is intended for educational and research purposes only. It
+does not provide financial or investment advice.

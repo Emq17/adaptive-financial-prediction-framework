@@ -17,7 +17,7 @@ def format_feature_label(feature_name: str) -> str:
         "quote_asset_volume": "Total Trading Value",
         "number_of_trades": "Number of Trades",
         "taker_buy_base_asset_volume": "Bitcoin Bought by Buyers",
-        "taker_buy_quote_asset_volume": "Buyer Trading Volume",
+        "taker_buy_quote_asset_volume": "Aggressive Buy Volume",
         "daily_return": "Today's Price Change",
         "price_range": "Today's Price Range",
         "body_size": "Today's Open-to-Close Change",
