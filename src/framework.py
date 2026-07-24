@@ -174,6 +174,67 @@ class FinancialPredictionFramework:
         if DEBUG:
             model_row = prediction_row.iloc[[-1]][feature_columns]
             raw_probabilities = model.predict_proba(model_row)[0]
+            analysis_window_scores = None
+
+            if recommendation is not None:
+                score_records = []
+
+                for lookback, evaluation in (
+                    recommendation.evaluations.items()
+                ):
+                    evaluation_predictions = evaluation.predictions
+                    actual_sequence = (
+                        evaluation_predictions["actual"]
+                        .astype(int)
+                        .tolist()
+                    )
+                    predicted_sequence = (
+                        evaluation_predictions["predicted"]
+                        .astype(int)
+                        .tolist()
+                    )
+                    confusion_counts = [
+                        [
+                            sum(
+                                actual == actual_class
+                                and predicted == predicted_class
+                                for actual, predicted in zip(
+                                    actual_sequence,
+                                    predicted_sequence,
+                                )
+                            )
+                            for predicted_class in [0, 1]
+                        ]
+                        for actual_class in [0, 1]
+                    ]
+                    score_records.append(
+                        {
+                            "window": lookback,
+                            "accuracy": evaluation.accuracy,
+                            "F1": evaluation.f1_score,
+                            "precision": evaluation.precision,
+                            "recall": evaluation.recall,
+                            "number of predictions": len(
+                                evaluation_predictions
+                            ),
+                            "number correct": int(
+                                evaluation_predictions["correct"].sum()
+                            ),
+                            "confusion matrix (actual rows 0/1, "
+                            "predicted columns 0/1)": str(
+                                confusion_counts
+                            ),
+                            "prediction sequence": " ".join(
+                                map(str, predicted_sequence)
+                            ),
+                            "actual target sequence": " ".join(
+                                map(str, actual_sequence)
+                            ),
+                        }
+                    )
+
+                analysis_window_scores = pd.DataFrame(score_records)
+
             diagnostics = build_environment_diagnostics(
                 data_path=self.data_path,
                 market_data=self.market_data,
@@ -201,9 +262,7 @@ class FinancialPredictionFramework:
                         "random_forest_n_jobs": model.n_jobs,
                     },
                     "analysis_window_scores_before_ranking": (
-                        recommendation.candidate_scores
-                        if recommendation is not None
-                        else None
+                        analysis_window_scores
                     ),
                     "analysis_window_ranking": (
                         recommendation.rankings
