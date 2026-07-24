@@ -7,10 +7,15 @@ from pathlib import Path
 import pandas as pd
 
 from src.constants import (
+    DEBUG,
     MAX_CUSTOM_LOOKBACK,
     MIN_CUSTOM_LOOKBACK,
     ROLLING_EVALUATION_WINDOW,
     TARGET_COLUMN,
+)
+from src.diagnostics import (
+    build_environment_diagnostics,
+    emit_debug_diagnostics,
 )
 from src.data_loader import load_market_data
 from src.evaluation.evaluator import (
@@ -47,13 +52,14 @@ class FrameworkResult:
     explanation: str
     local_explanation: LocalPredictionExplanation | None
     local_explanation_error: str | None
+    diagnostics: dict[str, object] | None
 
 
 class FinancialPredictionFramework:
     """Coordinate loading, evaluation, selection, training, and prediction."""
 
     def __init__(self, data_path: str | Path) -> None:
-        self.data_path = Path(data_path)
+        self.data_path = Path(data_path).resolve()
         self.market_data = load_market_data(self.data_path)
 
     def run(
@@ -163,6 +169,65 @@ class FinancialPredictionFramework:
             feature_columns=feature_columns,
         )
 
+        diagnostics = None
+
+        if DEBUG:
+            model_row = prediction_row.iloc[[-1]][feature_columns]
+            raw_probabilities = model.predict_proba(model_row)[0]
+            diagnostics = build_environment_diagnostics(
+                data_path=self.data_path,
+                market_data=self.market_data,
+            )
+            diagnostics.update(
+                {
+                    "final_five_feature_rows": featured_data.tail(5),
+                    "feature_columns": feature_columns,
+                    "feature_matrix_shape": list(
+                        training_data[feature_columns].shape
+                    ),
+                    "target_class_distribution": {
+                        str(key): int(value)
+                        for key, value in (
+                            training_data[TARGET_COLUMN]
+                            .astype(int)
+                            .value_counts()
+                            .sort_index()
+                            .items()
+                        )
+                    },
+                    "random_state_values": {
+                        "project_random_state": model.random_state,
+                        "random_forest_random_state": model.random_state,
+                        "random_forest_n_jobs": model.n_jobs,
+                    },
+                    "analysis_window_scores_before_ranking": (
+                        recommendation.candidate_scores
+                        if recommendation is not None
+                        else None
+                    ),
+                    "analysis_window_ranking": (
+                        recommendation.rankings
+                        if recommendation is not None
+                        else None
+                    ),
+                    "selected_analysis_window": selected_lookback,
+                    "model_classes": [
+                        int(value) for value in model.classes_
+                    ],
+                    "raw_predict_proba": [
+                        float(value) for value in raw_probabilities
+                    ],
+                    "final_class_confidence_mapping": {
+                        str(int(model.classes_[index])): float(value)
+                        for index, value in enumerate(raw_probabilities)
+                    },
+                    "predicted_class": prediction.predicted_class,
+                    "predicted_label": prediction.label,
+                    "displayed_confidence": prediction.probability,
+                }
+            )
+            emit_debug_diagnostics(diagnostics)
+
         local_explanation = None
         local_explanation_error = None
 
@@ -211,6 +276,7 @@ class FinancialPredictionFramework:
             explanation=explanation,
             local_explanation=local_explanation,
             local_explanation_error=local_explanation_error,
+            diagnostics=diagnostics,
         )
 
     def _get_actual_class(

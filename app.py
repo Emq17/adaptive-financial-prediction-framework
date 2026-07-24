@@ -1,19 +1,15 @@
 """Streamlit entry point for the financial prediction dashboard."""
 
-from pathlib import Path
-
 import streamlit as st
 
-from src.constants import APP_TITLE
+from src.constants import APP_TITLE, DATA_PATH, DEBUG
+from src.diagnostics import render_debug_diagnostics
 from src.framework import FinancialPredictionFramework
 from src.ui.controls import render_sidebar
 from src.ui.explanation import render_explanation
 from src.ui.research import render_research
 from src.ui.results import render_results
 from src.visualization import create_price_chart
-
-DATA_PATH = Path("data/raw/btc_1d_data_2018_to_2025.csv")
-
 
 st.set_page_config(
     page_title=APP_TITLE,
@@ -22,9 +18,8 @@ st.set_page_config(
 )
 
 
-@st.cache_resource
 def load_framework() -> FinancialPredictionFramework:
-    """Load the application framework once."""
+    """Load the framework from the current tracked dataset."""
     return FinancialPredictionFramework(DATA_PATH)
 
 
@@ -51,13 +46,22 @@ st.plotly_chart(
 
 settings = render_sidebar(framework.market_data)
 
-result = st.session_state.get("prediction_result")
+request_signature = (
+    settings.prediction_date.isoformat(),
+    settings.custom_lookback,
+)
+stored_signature = st.session_state.get("prediction_request_signature")
+result = (
+    st.session_state.get("prediction_result")
+    if stored_signature == request_signature
+    else None
+)
 
 if settings.run_prediction:
     try:
         spinner_text = (
-            "Evaluating candidate models, generating the prediction, and "
-            "explaining the current prediction..."
+            "Evaluating analysis windows, generating the prediction, and "
+            "explaining the current result..."
             if settings.custom_lookback is None
             else "Evaluating the custom model, generating the prediction, "
             "and explaining the current prediction..."
@@ -70,10 +74,12 @@ if settings.run_prediction:
             )
 
         st.session_state["prediction_result"] = result
+        st.session_state["prediction_request_signature"] = request_signature
         st.success("Prediction completed successfully.")
 
     except Exception as error:
         st.session_state.pop("prediction_result", None)
+        st.session_state.pop("prediction_request_signature", None)
         st.error(f"Prediction failed: {error}")
         st.stop()
 
@@ -113,6 +119,9 @@ elif selected_section == "How It Works":
     render_explanation(result)
 else:
     render_research(result)
+
+if DEBUG:
+    render_debug_diagnostics(result)
 
 
 st.caption(

@@ -44,12 +44,6 @@ pushed the fitted model toward a bullish or bearish result. These explanations
 describe model behavior; they do not establish causation or guarantee future
 performance.
 
-## Dataset
-
-The bundled dataset contains completed daily Bitcoin market observations
-through June 16, 2026. It is a static historical dataset rather than a live
-market feed, which keeps predictions and evaluation results reproducible.
-
 ## Dashboard
 
 The interface is organized into three sections:
@@ -105,6 +99,38 @@ python -m streamlit run app.py
 Use the sidebar to choose a prediction date and Recommended or Custom mode,
 then select **Run Prediction**. The completed result remains available while
 switching among the dashboard sections.
+
+## Dataset
+
+This project uses a static snapshot of the following public dataset to ensure
+that model training, walk-forward validation, and prediction results are
+reproducible.
+
+**Dataset**
+
+- **BITCOIN Historical Datasets 2018–2026 Binance API**
+- Author: Novandra Anugrah
+- Source: [Kaggle dataset page](https://www.kaggle.com/datasets/novandraanugrah/bitcoin-historical-datasets-2018-2024)
+
+The original dataset contains historical Bitcoin BTC/USDT market data
+collected from the Binance API across multiple timeframes. This application
+uses the daily timeframe.
+
+A fixed snapshot of the data is bundled with the repository so the application
+can run without downloading data from an external service. The bundled
+snapshot contains market data through June 16, 2026.
+
+This application does not retrieve live market data. Predictions are based
+only on the bundled historical dataset.
+
+The fixed snapshot is used to help ensure that identical code, data,
+dependencies, and user inputs produce reproducible model evaluation and
+prediction results.
+
+The original Kaggle dataset is distributed under the CC0 Public Domain
+license. Visit the
+[original Kaggle page](https://www.kaggle.com/datasets/novandraanugrah/bitcoin-historical-datasets-2018-2024)
+to review the current dataset details and licensing information.
 
 ## Disclaimer
 

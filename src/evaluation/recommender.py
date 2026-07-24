@@ -20,6 +20,7 @@ class RecommendationResult:
     """Ranked lookback evaluation results."""
 
     recommended_lookback: int
+    candidate_scores: pd.DataFrame
     rankings: pd.DataFrame
     evaluations: dict[int, EvaluationResult]
 
@@ -73,8 +74,10 @@ def recommend_lookback(
             }
         )
 
+    candidate_scores = pd.DataFrame(ranking_records)
+
     rankings = (
-        pd.DataFrame(ranking_records)
+        candidate_scores
         .sort_values(
             by=[
                 "accuracy",
@@ -94,6 +97,7 @@ def recommend_lookback(
 
     return RecommendationResult(
         recommended_lookback=recommended_lookback,
+        candidate_scores=candidate_scores,
         rankings=rankings,
         evaluations=evaluations,
     )
