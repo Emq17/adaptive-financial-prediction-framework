@@ -180,9 +180,7 @@ def create_prediction_drivers_chart(
             "direction",
         ],
         labels={
-            "contribution_points": (
-                "Directional Contribution (Probability Points)"
-            ),
+            "contribution_points": "Influence on Prediction",
             "feature_label": "Input Feature",
             "direction": "Direction",
         },
@@ -193,8 +191,7 @@ def create_prediction_drivers_chart(
             "Feature: %{y}<br>"
             "Raw name: %{customdata[0]}<br>"
             "Current value: %{customdata[1]}<br>"
-            "Displayed-class SHAP value: "
-            "%{customdata[2]:.3f} probability points<br>"
+            "Influence value: %{customdata[2]:.3f}<br>"
             "Direction: %{customdata[3]}"
             "<extra></extra>"
         )
@@ -213,7 +210,7 @@ def create_prediction_drivers_chart(
         },
         template="plotly_dark",
         height=max(470, 38 * len(chart_data) + 160),
-        xaxis_title="Directional Contribution (Probability Points)",
+        xaxis_title="Influence on Prediction",
         yaxis_title="Input Feature",
         yaxis={"autorange": "reversed"},
         legend_title="Contribution Direction",
@@ -284,9 +281,19 @@ def create_probability_timeline(
         ),
     )
 
+    average_confidence = chart_data["confidence_percent"].mean()
+    figure.add_hline(
+        y=average_confidence,
+        line_dash="dash",
+        line_width=1,
+        line_color="rgba(255,255,255,0.55)",
+        annotation_text="Average Confidence",
+        annotation_position="top left",
+    )
+
     figure.update_layout(
         template="plotly_dark",
-        height=430,
+        height=320,
         yaxis_range=[0, 100],
         margin=dict(l=20, r=20, t=30, b=30),
         legend_title="Prediction Result",
@@ -299,18 +306,41 @@ def create_confusion_matrix(
     evaluation: EvaluationResult,
 ) -> go.Figure:
     """Create a confusion matrix for bullish and bearish predictions."""
+    class_values = [0, 1]
+    class_labels = {
+        0: "Bearish",
+        1: "Bullish",
+    }
     matrix = confusion_matrix(
         evaluation.predictions["actual"],
         evaluation.predictions["predicted"],
-        labels=[0, 1],
+        labels=class_values,
     )
+    annotations = []
+
+    for actual_index, actual_class in enumerate(class_values):
+        annotation_row = []
+
+        for predicted_index, predicted_class in enumerate(class_values):
+            is_correct = actual_class == predicted_class
+            status = "Correct ✓" if is_correct else "Incorrect"
+            count = int(matrix[actual_index, predicted_index])
+            annotation_row.append(f"{status}<br>{count}")
+
+        annotations.append(annotation_row)
 
     figure = go.Figure(
         data=go.Heatmap(
             z=matrix,
-            x=["Predicted Bearish", "Predicted Bullish"],
-            y=["Actual Bearish", "Actual Bullish"],
-            text=matrix,
+            x=[
+                f"Predicted {class_labels[value]}"
+                for value in class_values
+            ],
+            y=[
+                f"Actual {class_labels[value]}"
+                for value in class_values
+            ],
+            text=annotations,
             texttemplate="%{text}",
             hovertemplate=(
                 "%{y}<br>"
@@ -326,8 +356,8 @@ def create_confusion_matrix(
     figure.update_layout(
         template="plotly_dark",
         height=390,
-        xaxis_title="Model Prediction",
-        yaxis_title="Actual Outcome",
+        xaxis_title="Predicted Direction",
+        yaxis_title="Actual Direction",
         margin=dict(l=20, r=20, t=30, b=30),
     )
 

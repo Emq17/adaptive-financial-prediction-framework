@@ -9,11 +9,20 @@ import pandas as pd
 def format_feature_label(feature_name: str) -> str:
     """Return a readable presentation label without renaming model inputs."""
     exact_labels = {
-        "daily_return": "Daily Return",
-        "price_range": "Daily Price Range",
-        "body_size": "Candle Body Size",
-        "volume_change": "Volume Change",
-        "rolling_volatility": "Rolling Volatility",
+        "open": "Today's Opening Price",
+        "high": "Today's High Price",
+        "low": "Today's Low Price",
+        "close": "Today's Closing Price",
+        "volume": "Trading Volume",
+        "quote_asset_volume": "Total Trading Value",
+        "number_of_trades": "Number of Trades",
+        "taker_buy_base_asset_volume": "Bitcoin Bought by Buyers",
+        "taker_buy_quote_asset_volume": "Buyer Trading Volume",
+        "daily_return": "Today's Price Change",
+        "price_range": "Today's Price Range",
+        "body_size": "Today's Open-to-Close Change",
+        "volume_change": "Change in Trading Volume",
+        "rolling_volatility": "Price Volatility",
     }
 
     if feature_name in exact_labels:
@@ -22,7 +31,7 @@ def format_feature_label(feature_name: str) -> str:
     lag_match = re.fullmatch(r"return_lag_(\d+)", feature_name)
 
     if lag_match:
-        return f"{lag_match.group(1)}-Day Lagged Return"
+        return f"Price Change ({lag_match.group(1)} Days Ago)"
 
     rolling_mean_match = re.fullmatch(
         r"rolling_mean_(\d+)",
@@ -30,7 +39,7 @@ def format_feature_label(feature_name: str) -> str:
     )
 
     if rolling_mean_match:
-        return f"{rolling_mean_match.group(1)}-Day Rolling Mean"
+        return f"{rolling_mean_match.group(1)}-Day Average Price"
 
     rolling_std_match = re.fullmatch(
         r"rolling_std_(\d+)",
@@ -38,12 +47,12 @@ def format_feature_label(feature_name: str) -> str:
     )
 
     if rolling_std_match:
-        return f"{rolling_std_match.group(1)}-Day Rolling Volatility"
+        return f"{rolling_std_match.group(1)}-Day Price Volatility"
 
     momentum_match = re.fullmatch(r"momentum_(\d+)", feature_name)
 
     if momentum_match:
-        return f"{momentum_match.group(1)}-Day Momentum"
+        return f"Price Change Over {momentum_match.group(1)} Days"
 
     return feature_name.replace("_", " ").title()
 

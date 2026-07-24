@@ -50,10 +50,19 @@ def render_explanation(result: Any) -> None:
     )
 
     if result.recommendation is not None:
+        available_windows = sorted(
+            int(value)
+            for value in result.recommendation.rankings["lookback"]
+        )
+        window_list = (
+            ", ".join(str(value) for value in available_windows[:-1])
+            + f", and {available_windows[-1]}"
+        )
         st.caption(
-            f"For this result, the {result.selected_lookback}-day analysis "
-            f"window ranked first among "
-            f"{len(result.recommendation.rankings)} available options."
+            f"For this prediction, the {result.selected_lookback}-day "
+            "analysis window achieved the strongest recent walk-forward "
+            "performance among the available analysis windows "
+            f"({window_list} days)."
         )
     else:
         st.caption(

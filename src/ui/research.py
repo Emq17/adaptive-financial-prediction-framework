@@ -58,8 +58,9 @@ def render_research(result: Any) -> None:
     st.divider()
     st.subheader("Historical Prediction Timeline")
     st.caption(
-        "How did confidence and prediction correctness vary across the "
-        "recent walk-forward evaluation period?"
+        "Each point represents one historical prediction. The marker "
+        "indicates whether the prediction was correct, while the vertical "
+        "position shows the model's estimated confidence."
     )
     st.plotly_chart(
         create_probability_timeline(evaluation),
@@ -69,12 +70,13 @@ def render_research(result: Any) -> None:
 
     st.divider()
     st.subheader("Confusion Matrix")
-    st.caption(
-        "The confusion matrix summarizes correct and incorrect bullish and "
-        "bearish predictions."
-    )
     st.plotly_chart(
         create_confusion_matrix(evaluation),
         width="stretch",
         key="research_confusion_matrix",
+    )
+    st.caption(
+        "Cells labeled 'Correct' show where the predicted market direction "
+        "matched the actual outcome. Cells labeled 'Incorrect' show where "
+        "the prediction differed from the actual outcome."
     )
