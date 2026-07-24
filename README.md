@@ -9,6 +9,11 @@ The project is designed to make model behavior and recent historical
 performance easy to inspect without presenting predictions as financial
 advice.
 
+## Live Demo
+
+Explore the deployed application at
+[quantmatrix.streamlit.app](https://quantmatrix.streamlit.app).
+
 ## Key Features
 
 - Predicts bullish or bearish daily Bitcoin direction
