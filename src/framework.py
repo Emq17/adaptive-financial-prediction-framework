@@ -23,7 +23,9 @@ from src.evaluation.recommender import (
 )
 from src.feature_engineering import create_features
 from src.models.random_forest import (
+    LocalPredictionExplanation,
     PredictionResult,
+    explain_current_prediction,
     predict_latest,
     train_random_forest,
 )
@@ -43,6 +45,8 @@ class FrameworkResult:
     actual_class: int | None
     was_correct: bool | None
     explanation: str
+    local_explanation: LocalPredictionExplanation | None
+    local_explanation_error: str | None
 
 
 class FinancialPredictionFramework:
@@ -159,6 +163,19 @@ class FinancialPredictionFramework:
             feature_columns=feature_columns,
         )
 
+        local_explanation = None
+        local_explanation_error = None
+
+        try:
+            local_explanation = explain_current_prediction(
+                model=model,
+                prediction_row=prediction_row,
+                feature_columns=feature_columns,
+                prediction=prediction,
+            )
+        except Exception as error:
+            local_explanation_error = str(error)
+
         actual_class = self._get_actual_class(
             prediction_date=selected_prediction_date,
             latest_market_date=latest_market_date,
@@ -192,6 +209,8 @@ class FinancialPredictionFramework:
             actual_class=actual_class,
             was_correct=was_correct,
             explanation=explanation,
+            local_explanation=local_explanation,
+            local_explanation_error=local_explanation_error,
         )
 
     def _get_actual_class(
@@ -234,21 +253,24 @@ class FinancialPredictionFramework:
 
         if recommendation is not None:
             selection_text = (
-                f"The framework compared all candidate lookbacks and "
-                f"selected the {selected_lookback}-day window because it "
-                f"ranked highest using recent out-of-sample accuracy."
+                f"The framework compared all available analysis windows and "
+                f"selected the {selected_lookback}-day analysis window "
+                f"because it ranked highest using recent out-of-sample "
+                f"accuracy."
             )
         else:
             selection_text = (
-                f"The {selected_lookback}-day lookback was selected "
-                f"manually and evaluated using the same walk-forward method."
+                f"The {selected_lookback}-day analysis window was selected "
+                f"manually and evaluated using the same walk-forward "
+                f"method."
             )
 
         explanation = (
             f"{selection_text} The model was tested on "
             f"{prediction_count} sequential predictions made using only "
             f"information available before each prediction date. It achieved "
-            f"{evaluation.accuracy:.1%} lookback accuracy. The final model "
+            f"{evaluation.accuracy:.1%} analysis window accuracy. The final "
+            f"model "
             f"predicts a {prediction.label.lower()} close for "
             f"{prediction_date.strftime('%B %d, %Y')} with "
             f"{prediction.probability:.1%} estimated confidence. This "
@@ -281,7 +303,7 @@ class FinancialPredictionFramework:
         """Validate a user-selected lookback window."""
         if not MIN_CUSTOM_LOOKBACK <= lookback <= MAX_CUSTOM_LOOKBACK:
             raise ValueError(
-                "Custom lookback must be between "
+                "Custom analysis window must be between "
                 f"{MIN_CUSTOM_LOOKBACK} and {MAX_CUSTOM_LOOKBACK} days."
             )
 

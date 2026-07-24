@@ -2,66 +2,89 @@
 
 from typing import Any
 
-import pandas as pd
 import streamlit as st
 
-from src.ui.formatting import (
-    highlight_winner,
-    prepare_prediction_log,
-    prepare_rankings_table,
-)
-from src.visualization import (
-    create_price_chart,
-    create_rankings_chart,
-)
+from src.ui.formatting import prepare_prediction_log
+from src.visualization import create_prediction_drivers_chart
 
 
-def render_results(
-    result: Any,
-    market_data: pd.DataFrame,
-) -> None:
-    """Render the primary prediction results."""
-    st.subheader("Prediction")
+def render_results(result: Any) -> None:
+    """Render the prediction, local explanation, and recent performance."""
+    st.subheader("Prediction Summary")
 
-    metric_columns = st.columns(4)
-
-    metric_columns[0].metric(
-        "Direction",
-        result.prediction.label,
-        help=(
-            "Bullish means the model expects the selected day's close "
-            "to finish above the prior daily close."
-        ),
+    selection_mode = (
+        "Recommended"
+        if result.recommendation is not None
+        else "Custom"
     )
 
-    metric_columns[1].metric(
-        "Estimated Confidence",
-        f"{result.prediction.probability:.1%}",
-        help=(
-            "The proportion of Random Forest trees supporting "
-            "the predicted direction."
-        ),
-    )
+    with st.container(border=True):
+        primary_metrics = st.columns(3)
+        primary_metrics[0].metric(
+            "Predicted Direction",
+            result.prediction.label,
+            help=(
+                "Bullish expects a higher close; Bearish expects a lower "
+                "or unchanged close."
+            ),
+        )
+        primary_metrics[1].metric(
+            "Estimated Confidence",
+            f"{result.prediction.probability:.1%}",
+            help=(
+                "The proportion of Random Forest trees supporting the "
+                "predicted direction."
+            ),
+        )
+        primary_metrics[2].metric(
+            "Prediction Date",
+            result.prediction_date.strftime("%Y-%m-%d"),
+        )
 
-    metric_columns[2].metric(
-        "Prediction Date",
-        result.prediction_date.strftime("%Y-%m-%d"),
-    )
-
-    metric_columns[3].metric(
-        "Lookback",
-        f"{result.selected_lookback} Days",
-    )
+        selection_metrics = st.columns(2)
+        selection_metrics[0].metric("Mode", selection_mode)
+        selection_metrics[1].metric(
+            "Selected Analysis Window",
+            f"{result.selected_lookback}-Day Analysis Window",
+        )
 
     st.divider()
-    st.subheader("Model Performance")
+    st.subheader("Current Prediction Drivers")
+    st.caption(
+        "Which current inputs moved the model toward Bullish or Bearish?"
+    )
+
+    if result.local_explanation is not None:
+        st.plotly_chart(
+            create_prediction_drivers_chart(
+                result.local_explanation
+            ),
+            width="stretch",
+            key="results_current_prediction_drivers",
+        )
+        st.caption(
+            "SHAP values estimate how each current input moved this specific "
+            "prediction away from the model's usual prediction level. "
+            "Positive chart values push toward bullish; negative chart "
+            "values push toward bearish. These values explain the fitted "
+            "model's behavior and do not establish causation or guarantee "
+            "future market movement."
+        )
+    else:
+        st.warning(
+            "Current prediction drivers are unavailable. "
+            f"{result.local_explanation_error or 'Validation failed.'}"
+        )
+
+    st.divider()
+    st.subheader("Recent Model Performance")
 
     evaluation = result.selected_evaluation
 
     performance_columns = st.columns(4)
 
     performance_columns[0].metric(
-        "Lookback Accuracy",
+        "Analysis Window Accuracy",
         f"{evaluation.accuracy:.1%}",
     )
 
@@ -80,43 +103,33 @@ def render_results(
         "Walk-Forward",
     )
 
-    if result.recommendation is not None:
-        st.divider()
-        st.subheader("Adaptive Lookback Recommendation")
+    st.divider()
+    st.subheader("Additional Details")
 
-        rankings = prepare_rankings_table(
-            result.recommendation.rankings
-        )
-
+    with st.expander("Historical Prediction Log"):
         st.dataframe(
-            rankings.style.apply(
-                highlight_winner,
-                axis=1,
-            ),
+            prepare_prediction_log(result),
             width="stretch",
             hide_index=True,
         )
 
-        st.plotly_chart(
-            create_rankings_chart(
-                result.recommendation.rankings
-            ),
-            width="stretch",
-        )
+    with st.expander("Complete Generated Explanation"):
+        st.write(result.explanation)
 
-    st.divider()
-    st.subheader("Historical Prediction Log")
-
-    st.dataframe(
-        prepare_prediction_log(result),
-        width="stretch",
-        hide_index=True,
-    )
-
-    st.divider()
-    st.subheader("Bitcoin Price History")
-
-    st.plotly_chart(
-        create_price_chart(market_data),
-        width="stretch",
-    )
+    with st.expander("Prediction Verification"):
+        if result.actual_class is None:
+            st.write(
+                "The actual outcome is not yet present in the dataset."
+            )
+        else:
+            actual_label = (
+                "Bullish" if result.actual_class == 1 else "Bearish"
+            )
+            result_label = (
+                "Correct" if result.was_correct else "Incorrect"
+            )
+            st.write(
+                f"Actual outcome: **{actual_label}**  \n"
+                f"Prediction: **{result.prediction.label}**  \n"
+                f"Result: **{result_label}**"
+            )

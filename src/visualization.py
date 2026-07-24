@@ -6,6 +6,8 @@ import plotly.graph_objects as go
 from sklearn.metrics import confusion_matrix
 
 from src.evaluation.evaluator import EvaluationResult
+from src.models.random_forest import LocalPredictionExplanation
+from src.ui.formatting import format_feature_label
 
 
 def create_price_chart(
@@ -45,23 +47,47 @@ def create_price_chart(
 
 def create_rankings_chart(
     rankings: pd.DataFrame,
+    recommended_lookback: int,
 ) -> go.Figure:
     """Compare candidate lookbacks by walk-forward accuracy."""
     chart_data = rankings.copy()
 
-    chart_data["Lookback"] = (
-        chart_data["lookback"].astype(str) + " Days"
+    chart_data["Analysis Window"] = (
+        chart_data["lookback"].astype(str)
+        + "-Day Analysis Window"
     )
 
-    chart_data["Lookback Accuracy"] = (
+    chart_data["Analysis Window Accuracy"] = (
         chart_data["accuracy"] * 100
     )
+    selected_mask = chart_data["lookback"] == recommended_lookback
+    bar_colors = [
+        "#FACC15" if is_selected else "#4C78A8"
+        for is_selected in selected_mask
+    ]
+    selection_labels = [
+        (
+            "Selected Analysis Window"
+            if is_selected
+            else "Other Analysis Window"
+        )
+        for is_selected in selected_mask
+    ]
 
-    figure = px.bar(
-        chart_data,
-        x="Lookback",
-        y="Lookback Accuracy",
-        text="Lookback Accuracy",
+    figure = go.Figure(
+        data=go.Bar(
+            x=chart_data["Analysis Window"],
+            y=chart_data["Analysis Window Accuracy"],
+            text=chart_data["Analysis Window Accuracy"],
+            marker_color=bar_colors,
+            customdata=selection_labels,
+            hovertemplate=(
+                "Analysis window: %{x}<br>"
+                "Recent accuracy: %{y:.1f}%<br>"
+                "Status: %{customdata}"
+                "<extra></extra>"
+            ),
+        )
     )
 
     figure.update_traces(
@@ -69,20 +95,128 @@ def create_rankings_chart(
         textposition="outside",
     )
 
-    maximum_accuracy = chart_data["Lookback Accuracy"].max()
+    maximum_accuracy = chart_data["Analysis Window Accuracy"].max()
 
     figure.update_layout(
+        template="plotly_dark",
+        height=430,
+        yaxis_title="Accuracy (%)",
+        xaxis_title="Analysis Window",
+        yaxis_range=[0, max(100, maximum_accuracy + 10)],
+        margin=dict(l=20, r=20, t=30, b=30),
+        showlegend=False,
+    )
+
+    return figure
+
+
+def create_prediction_drivers_chart(
+    explanation: LocalPredictionExplanation,
+) -> go.Figure:
+    """Show the strongest local drivers of the current prediction."""
+    chart_data = explanation.contributions.copy()
+    chart_data["absolute_contribution"] = chart_data[
+        "directional_contribution"
+    ].abs()
+    bullish_drivers = chart_data[
+        chart_data["directional_contribution"] >= 0
+    ].nlargest(5, "absolute_contribution")
+    bearish_drivers = chart_data[
+        chart_data["directional_contribution"] < 0
+    ].nlargest(5, "absolute_contribution")
+    selected_drivers = pd.concat(
+        [bullish_drivers, bearish_drivers]
+    ).drop_duplicates(subset=["feature"])
+
+    if len(selected_drivers) < min(10, len(chart_data)):
+        remaining_drivers = chart_data[
+            ~chart_data["feature"].isin(selected_drivers["feature"])
+        ].nlargest(
+            10 - len(selected_drivers),
+            "absolute_contribution",
+        )
+        selected_drivers = pd.concat(
+            [selected_drivers, remaining_drivers]
+        )
+
+    chart_data = selected_drivers.sort_values(
+        "absolute_contribution",
+        ascending=False,
+    )
+    chart_data["feature_label"] = chart_data["feature"].map(
+        format_feature_label
+    )
+    chart_data["contribution_points"] = (
+        chart_data["directional_contribution"] * 100
+    )
+    chart_data["shap_points"] = chart_data["shap_value"] * 100
+    chart_data["direction"] = chart_data[
+        "contribution_points"
+    ].map(
+        lambda value: (
+            "Toward Bullish" if value >= 0 else "Toward Bearish"
+        )
+    )
+    chart_data["display_value"] = chart_data["feature_value"].map(
+        lambda value: f"{value:,.6g}"
+    )
+
+    direction_colors = {
+        "Toward Bullish": px.colors.qualitative.Plotly[2],
+        "Toward Bearish": px.colors.qualitative.Plotly[1],
+    }
+
+    figure = px.bar(
+        chart_data,
+        x="contribution_points",
+        y="feature_label",
+        orientation="h",
+        color="direction",
+        color_discrete_map=direction_colors,
+        custom_data=[
+            "feature",
+            "display_value",
+            "shap_points",
+            "direction",
+        ],
+        labels={
+            "contribution_points": (
+                "Directional Contribution (Probability Points)"
+            ),
+            "feature_label": "Input Feature",
+            "direction": "Direction",
+        },
+    )
+
+    figure.update_traces(
+        hovertemplate=(
+            "Feature: %{y}<br>"
+            "Raw name: %{customdata[0]}<br>"
+            "Current value: %{customdata[1]}<br>"
+            "Displayed-class SHAP value: "
+            "%{customdata[2]:.3f} probability points<br>"
+            "Direction: %{customdata[3]}"
+            "<extra></extra>"
+        )
+    )
+
+    figure.add_vline(
+        x=0,
+        line_width=1,
+        line_color="rgba(255,255,255,0.7)",
+    )
+    figure.update_layout(
         title={
-            "text": "Candidate Lookback Performance",
+            "text": "Top Current Prediction Drivers",
             "x": 0.5,
             "xanchor": "center",
         },
         template="plotly_dark",
-        height=430,
-        yaxis_title="Lookback Accuracy (%)",
-        xaxis_title="Prediction Lookback",
-        yaxis_range=[0, max(100, maximum_accuracy + 10)],
-        showlegend=False,
+        height=max(470, 38 * len(chart_data) + 160),
+        xaxis_title="Directional Contribution (Probability Points)",
+        yaxis_title="Input Feature",
+        yaxis={"autorange": "reversed"},
+        legend_title="Contribution Direction",
         margin=dict(l=20, r=20, t=70, b=30),
     )
 
@@ -151,18 +285,10 @@ def create_probability_timeline(
     )
 
     figure.update_layout(
-        title={
-            "text": (
-                f"Confidence Across the Last "
-                f"{len(chart_data)} Out-of-Sample Predictions"
-            ),
-            "x": 0.5,
-            "xanchor": "center",
-        },
         template="plotly_dark",
         height=430,
         yaxis_range=[0, 100],
-        margin=dict(l=20, r=20, t=70, b=30),
+        margin=dict(l=20, r=20, t=30, b=30),
         legend_title="Prediction Result",
     )
 
@@ -198,16 +324,11 @@ def create_confusion_matrix(
     )
 
     figure.update_layout(
-        title={
-            "text": "Prediction Confusion Matrix",
-            "x": 0.5,
-            "xanchor": "center",
-        },
         template="plotly_dark",
         height=390,
         xaxis_title="Model Prediction",
         yaxis_title="Actual Outcome",
-        margin=dict(l=20, r=20, t=70, b=30),
+        margin=dict(l=20, r=20, t=30, b=30),
     )
 
     return figure

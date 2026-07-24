@@ -105,11 +105,15 @@ def render_sidebar(
         )
 
         selection_mode = st.radio(
-            "Lookback Selection",
+            "Analysis Window Selection",
             options=["Recommended", "Custom"],
             help=(
-                "Recommended mode compares multiple lookbacks. "
-                "Custom mode evaluates the lookback you choose."
+                "An analysis window is the number of previous trading days "
+                "the model reviews before making a prediction. Recommended "
+                "mode compares the available analysis windows using recent "
+                "walk-forward, out-of-sample predictions and automatically "
+                "selects the strongest-performing model before generating "
+                "the final prediction."
             ),
         )
 
@@ -118,14 +122,14 @@ def render_sidebar(
         if selection_mode == "Custom":
             custom_lookback = int(
                 st.number_input(
-                    "Custom Lookback (Days)",
+                    "Custom Analysis Window (Days)",
                     min_value=MIN_CUSTOM_LOOKBACK,
                     max_value=MAX_CUSTOM_LOOKBACK,
                     value=20,
                     step=1,
                     help=(
-                        "The number of historical days used when creating "
-                        "lagged model features."
+                        "The number of previous trading days the model "
+                        "reviews before making a prediction."
                     ),
                 )
             )

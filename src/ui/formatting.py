@@ -1,8 +1,51 @@
 """Formatting helpers for dashboard tables."""
 
+import re
 from typing import Any
 
 import pandas as pd
+
+
+def format_feature_label(feature_name: str) -> str:
+    """Return a readable presentation label without renaming model inputs."""
+    exact_labels = {
+        "daily_return": "Daily Return",
+        "price_range": "Daily Price Range",
+        "body_size": "Candle Body Size",
+        "volume_change": "Volume Change",
+        "rolling_volatility": "Rolling Volatility",
+    }
+
+    if feature_name in exact_labels:
+        return exact_labels[feature_name]
+
+    lag_match = re.fullmatch(r"return_lag_(\d+)", feature_name)
+
+    if lag_match:
+        return f"{lag_match.group(1)}-Day Lagged Return"
+
+    rolling_mean_match = re.fullmatch(
+        r"rolling_mean_(\d+)",
+        feature_name,
+    )
+
+    if rolling_mean_match:
+        return f"{rolling_mean_match.group(1)}-Day Rolling Mean"
+
+    rolling_std_match = re.fullmatch(
+        r"rolling_std_(\d+)",
+        feature_name,
+    )
+
+    if rolling_std_match:
+        return f"{rolling_std_match.group(1)}-Day Rolling Volatility"
+
+    momentum_match = re.fullmatch(r"momentum_(\d+)", feature_name)
+
+    if momentum_match:
+        return f"{momentum_match.group(1)}-Day Momentum"
+
+    return feature_name.replace("_", " ").title()
 
 
 def prepare_prediction_log(
@@ -15,8 +58,8 @@ def prepare_prediction_log(
         predictions["prediction_date"]
     ).dt.strftime("%Y-%m-%d")
 
-    predictions["Lookback"] = (
-        f"{result.selected_lookback} Days"
+    predictions["Analysis Window"] = (
+        f"{result.selected_lookback}-Day Analysis Window"
     )
 
     predictions["Prediction"] = predictions["predicted"].map(
@@ -47,7 +90,7 @@ def prepare_prediction_log(
     return predictions[
         [
             "Prediction Date",
-            "Lookback",
+            "Analysis Window",
             "Prediction",
             "Actual",
             "Correct",
@@ -62,15 +105,15 @@ def prepare_rankings_table(
     """Create the simplified lookback ranking table."""
     display_table = rankings.copy()
 
-    display_table["Winner"] = display_table["rank"].map(
-        lambda rank: "⭐" if rank == 1 else ""
+    display_table["Selected"] = display_table["rank"].map(
+        lambda rank: "★" if rank == 1 else ""
     )
 
-    display_table["Prediction Lookback"] = (
+    display_table["Analysis Window"] = (
         display_table["lookback"].astype(str) + " Days"
     )
 
-    display_table["Lookback Accuracy"] = display_table[
+    display_table["Accuracy"] = display_table[
         "accuracy"
     ].map(lambda value: f"{value:.1%}")
 
@@ -78,19 +121,14 @@ def prepare_rankings_table(
         "average_confidence"
     ].map(lambda value: f"{value:.1%}")
 
-    display_table["Out-of-Sample Predictions"] = display_table[
-        "out_of_sample_predictions"
-    ]
-
     display_table["Rank"] = display_table["rank"]
 
     return display_table[
         [
-            "Winner",
-            "Prediction Lookback",
-            "Lookback Accuracy",
+            "Selected",
+            "Analysis Window",
+            "Accuracy",
             "Average Confidence",
-            "Out-of-Sample Predictions",
             "Rank",
         ]
     ]
@@ -105,39 +143,3 @@ def highlight_winner(row: pd.Series) -> list[str]:
         ] * len(row)
 
     return [""] * len(row)
-
-
-def prepare_advanced_metrics(
-    rankings: pd.DataFrame,
-) -> pd.DataFrame:
-    """Create the technical model metrics table."""
-    advanced_table = rankings[
-        [
-            "lookback",
-            "precision",
-            "recall",
-            "f1_score",
-        ]
-    ].copy()
-
-    advanced_table.columns = [
-        "Lookback",
-        "Bullish Prediction Precision",
-        "Bullish Detection Rate",
-        "Balanced F1 Score",
-    ]
-
-    advanced_table["Lookback"] = (
-        advanced_table["Lookback"].astype(str) + " Days"
-    )
-
-    for column in [
-        "Bullish Prediction Precision",
-        "Bullish Detection Rate",
-        "Balanced F1 Score",
-    ]:
-        advanced_table[column] = advanced_table[column].map(
-            lambda value: f"{value:.1%}"
-        )
-
-    return advanced_table
