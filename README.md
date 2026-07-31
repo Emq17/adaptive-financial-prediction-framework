@@ -9,9 +9,10 @@ The project is designed to make model behavior and recent historical
 performance easy to inspect without presenting predictions as financial
 advice.
 
+Live Demo: https://machine-learn-bitcoin-model.streamlit.app/
+
 Documentation: https://docs.google.com/document/d/1CXIZdFYT1-23e3-XKZDSYtD7mHSwz75qHyPAlARdr3Y/edit?tab=t.0
 
-Live Demo: https://machine-learn-bitcoin-model.streamlit.app/
 
 ## Key Features
 
