@@ -12,7 +12,7 @@ advice.
 ## Live Demo
 
 Explore the deployed application at
-[pnlmetrics.streamlit.app](https://pnlmetrics.streamlit.app).
+[pnlmetrics.streamlit.app](https://machine-learn-bitcoin-model.streamlit.app/).
 
 ## Key Features
 
