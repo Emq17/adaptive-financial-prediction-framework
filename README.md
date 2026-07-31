@@ -9,11 +9,6 @@ The project is designed to make model behavior and recent historical
 performance easy to inspect without presenting predictions as financial
 advice.
 
-## Live Demo
-
-Explore the deployed application at
-[pnlmetrics.streamlit.app](https://machine-learn-bitcoin-model.streamlit.app/).
-
 ## Key Features
 
 - Predicts bullish or bearish daily Bitcoin direction
@@ -72,22 +67,31 @@ performs walk-forward evaluation before displaying the result.
 
 ## Prerequisites
 
-- Python 3.11 or a compatible Python 3 release
+- Python 3.11
 - `pip`
+
+Verify your Python version before creating the virtual environment:
+
+```bash
+python3.11 --version
+```
+
+The application was developed and tested with Python 3.11. Earlier Python versions may not satisfy the pinned dependency versions.
 
 ## Run Locally
 
 Create and activate a virtual environment:
 
 ```bash
-python -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 ```
 
 Install the pinned dependencies:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
 Start the Streamlit application:
@@ -95,6 +99,8 @@ Start the Streamlit application:
 ```bash
 python -m streamlit run app.py
 ```
+
+**Note:** The first application startup may take up to one minute while Python loads the machine learning libraries and initializes the application. During this time the application may appear unresponsive before the Streamlit interface opens.
 
 Use the sidebar to choose a prediction date and Recommended or Custom mode,
 then select **Run Prediction**. The completed result remains available while
