@@ -9,6 +9,8 @@ The project is designed to make model behavior and recent historical
 performance easy to inspect without presenting predictions as financial
 advice.
 
+Live Demo: https://machine-learn-bitcoin-model.streamlit.app/
+
 ## Key Features
 
 - Predicts bullish or bearish daily Bitcoin direction
